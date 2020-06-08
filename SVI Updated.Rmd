@@ -1,0 +1,174 @@
+---
+title: "SVI Aggregate"
+author: "Eric Stokan"
+date: "6/7/2020"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+# Set Working Directory
+
+You will need to change to a working directory where you save the CSV files.
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("C:/Users/estokan/Desktop/Research/Data/Social Vulnerability Index")
+```
+
+# Libraries
+
+The second thing you need to do is make sure you use these libraries.  They do require install if you have not used them.  Just type the library name in the *install packages* command install.packages('XXXXXXX').
+
+```{r Libraries, echo=TRUE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(dplyr)
+library(stringr) #For dealing with string variables
+library(lubridate) #For dealing with dates
+library(tigris)
+library(sf)
+options(tigris_class= "sf")
+options(tigris_use_cache= TRUE)
+```
+
+
+# Data source
+
+You will need to store these three svi data sources in your working directory so the R script can pull it in.
+
+```{r Data SVI, echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+SVI2000<- read.csv("SVI2000.csv")
+SVI2010<-read.csv("SVI2010.csv")
+SVI2014<-read.csv("SVI2014.csv")
+```
+
+# Merge data
+
+Now, I need to merge all of the data together.
+
+```{r Merge Data, echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+SVI_All<- left_join(SVI2000, SVI2010, by=c("FIPS"))
+SVI_All<- left_join(SVI_All, SVI2014, by=c("FIPS"))
+
+```
+
+# Subset data
+
+Next, I really only want a few of the variables.  So, I subset the data and I change the variable names in the *select* command.  This has the same functionality as *select* and *rename*.
+
+```{r SVI Calcualtions, echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+SVI <-SVI_All %>%
+  select(FIPS, GEOID=GEO_ID, STATE= STATE_NAME.x, STATEAbbr= STATE_ABBR.x, 
+         County= COUNTY.x, T1_2000=USG1TP, T2_2000=USG2TP, T3_2000=USG3TP, 
+         T4_2000=USG4TP, T_2000=USTP, T1_2010=R_PL_THEME1, T2_2010=R_PL_THEME2, 
+         T3_2010=R_PL_THEME3, T4_2010=R_PL_THEME4, T_2010=R_PL_THEMES, 
+         T1_2014=RPL_THEME1, T2_2014=RPL_THEME2, T3_2014=RPL_THEME3, 
+         T4_2014=RPL_THEME4, T_2014=RPL_THEMES)
+```
+
+# Calculation variables
+
+Next, I calculate all of the SVI measures
+
+```{r SVI Mutations, echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+SVI<-SVI %>%
+  mutate(T1_Ch0010= (T1_2010-T1_2000)/T1_2000) %>%
+  mutate(T2_Ch0010= (T2_2010-T2_2000)/T2_2000) %>%
+  mutate(T3_Ch0010= (T3_2010-T3_2000)/T3_2000) %>%
+  mutate(T4_Ch0010= (T4_2010-T4_2000)/T4_2000) %>%
+  mutate(T_Ch0010= (T_2010-T_2000)/T_2000) %>%
+  mutate(T1_Ch1014= (T1_2014-T1_2010)/T1_2010) %>%
+  mutate(T2_Ch1014= (T2_2014-T2_2010)/T2_2010) %>%
+  mutate(T3_Ch1014= (T3_2014-T3_2010)/T3_2010) %>%
+  mutate(T4_Ch1014= (T4_2014-T4_2010)/T4_2010) %>%
+  mutate(T_Ch1014= (T_2014-T_2010)/T_2010) %>%
+  mutate(T1_Ch1400= (T1_2014-T1_2000)/T1_2000) %>%
+  mutate(T2_Ch1400= (T2_2014-T2_2000)/T2_2000) %>%
+  mutate(T3_Ch1400= (T3_2014-T3_2000)/T3_2000) %>%
+  mutate(T4_Ch1400= (T4_2014-T4_2000)/T4_2000) %>%
+  mutate(T_Ch1400= (T_2014-T_2000)/T_2000) 
+```
+
+```{r Get Tracts by Metro, echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+AllStates<- rbind_tigris(
+  tracts("AL", cb = TRUE), 
+  tracts("AK", cb = TRUE),
+  tracts("AZ", cb = TRUE), 
+  tracts("AR", cb = TRUE),
+  tracts("CA", cb = TRUE), 
+  tracts("CO", cb = TRUE),
+  tracts("CT", cb = TRUE), 
+  tracts("DE", cb = TRUE),
+  tracts("DC", cb = TRUE), 
+  tracts("FL", cb = TRUE),
+  tracts("GA", cb = TRUE), 
+  tracts("HI", cb = TRUE),
+  tracts("ID", cb = TRUE), 
+  tracts("IL", cb = TRUE),
+  tracts("IN", cb = TRUE), 
+  tracts("IA", cb = TRUE),
+  tracts("KS", cb = TRUE), 
+  tracts("KY", cb = TRUE),
+  tracts("LA", cb = TRUE), 
+  tracts("ME", cb = TRUE),
+  tracts("MD", cb = TRUE), 
+  tracts("MA", cb = TRUE),
+  tracts("MI", cb = TRUE), 
+  tracts("MN", cb = TRUE),
+  tracts("MS", cb = TRUE), 
+  tracts("MO", cb = TRUE),
+  tracts("MT", cb = TRUE), 
+  tracts("NE", cb = TRUE),
+  tracts("NV", cb = TRUE), 
+  tracts("NH", cb = TRUE),
+  tracts("NJ", cb = TRUE), 
+  tracts("NM", cb = TRUE),
+  tracts("NY", cb = TRUE),
+  tracts("NC", cb = TRUE), 
+  tracts("ND", cb = TRUE),
+  tracts("OH", cb = TRUE), 
+  tracts("OK", cb = TRUE),
+  tracts("OR", cb = TRUE), 
+  tracts("PA", cb = TRUE),
+  tracts("RI", cb = TRUE), 
+  tracts("SC", cb = TRUE),
+  tracts("SD", cb = TRUE), 
+  tracts("TN", cb = TRUE),
+  tracts("TX", cb = TRUE), 
+  tracts("UT", cb = TRUE),
+  tracts("VT", cb = TRUE), 
+  tracts("VA", cb = TRUE),
+  tracts("WA", cb = TRUE), 
+  tracts("WV", cb = TRUE),
+  tracts("WI", cb = TRUE), 
+  tracts("WY", cb = TRUE)
+)
+```
+
+```{r Get Tracts by Metro2, echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+metros<-core_based_statistical_areas(cb=TRUE) %>%
+  select(metro_id= GEOID, metro_name=NAME)
+
+JoinedWMetros<-st_join(AllStates, metros, join=st_within)
+
+JoinedWMetros2<-JoinedWMetros%>%
+  select(-GEOID, GEOID=AFFGEOID)
+
+```
+
+```{r Join SVI to Metros, echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+SVItoMetro<-left_join(JoinedWMetros2, SVI, by= c("GEOID"))
+
+```
+
+
+```{r Write out data, echo=TRUE, message=FALSE, warning=FALSE}
+#Write out the dataset
+write.csv(SVItoMetro, file= "UpdatedSVItoMetro.csv")
+
+```
